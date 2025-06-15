@@ -12,6 +12,7 @@
   --green: #4caf50;
   --blue: #3f51b5;
   --lightblue: #2196f3;
+  --purple: #673ab7;
 }
 
 .dark-theme {
@@ -97,12 +98,14 @@ body {
 }
 
 .header .title {
-  color: var(--lightblue);
+  color: var(--purple);
 }
 
 .settings {
   display: flex;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 15px;
+  max-width: 400px;
 }
 
 .settings > * {

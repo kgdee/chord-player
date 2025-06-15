@@ -15,6 +15,15 @@
         <h1 class="title">Chord Player</h1>
       </div>
       <div class="settings">
+        <label class="beat-style-input">
+          Style
+          <select oninput="changeBeatStyle(this.value)">
+            <option value="0">Pop</option>
+            <option value="1">Pop2</option>
+            <option value="2">Jazz</option>
+            <option value="3">Melodic</option>
+          </select>
+        </label>
         <label class="volume-input">
           Volume
           <select oninput="changeVolume(this.value)">

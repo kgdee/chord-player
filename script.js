@@ -1,13 +1,14 @@
-const projectName = "chord-player"
+const projectName = "chord-player";
 const chordInput = document.querySelector(".chord-input textarea");
 const settingsEl = document.querySelector(".settings");
-const volumeInput = document.querySelector(".volume-input select")
+const beatStyleInput = document.querySelector(".beat-style-input select");
+const volumeInput = document.querySelector(".volume-input select");
 const octaveInput = settingsEl.querySelector(".octave-input input");
 const drumToggle = settingsEl.querySelector(".drum-toggle input");
 const beatsInput = settingsEl.querySelector(".beats-input input");
 const messageEl = document.querySelector(".message");
 
-const noteNames = {
+const notes = {
   C: 0,
   "C#": 1,
   Db: 1,
@@ -30,7 +31,7 @@ const noteNames = {
   Cb: 11,
 };
 
-const chordTypes = {
+const chordFormulas = {
   "": [0, 4, 7],
   m: [0, 3, 7],
   7: [0, 4, 7, 10],
@@ -38,14 +39,36 @@ const chordTypes = {
   maj7: [0, 4, 7, 11],
 };
 
-let currentChord = null;
-let currentVolume = getStoredValue("currentVolume", 0.5)
-let octave = getStoredValue("octave", 3)
-let beatCount = getStoredValue("beatCount", 3)
-let drumEnabled = getStoredValue("drumEnabled", true)
+const beatStyles = [
+  {
+    name: "Pop",
+    beats: [[0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3]],
+    drums: [0, 1, 0, 1],
+  },
+  {
+    name: "Pop2",
+    beats: [[0], [0, 1, 2, 3], [], [0]],
+    drums: [0, 1, 2, 1],
+  },
+  {
+    name: "Jazz",
+    beats: [[0, 1, 2, 3], [], [], []],
+    drums: [0, 2, 2, 0],
+  },
+  {
+    name: "Melodic",
+    beats: [[0], [1], [2], [3]],
+    drums: [0, 1, 2, 2],
+  },
+];
 
-const noteAudios = [];
-const drumAudios = [];
+let currentChord = null;
+let currentVolume = getStoredValue("currentVolume", 0.5);
+let octave = getStoredValue("octave", 3);
+let beatCount = getStoredValue("beatCount", 3);
+let drumEnabled = getStoredValue("drumEnabled", true);
+
+let selectedBeatStyle = getStoredValue("selectedBeatStyle", 0);
 
 window.addEventListener("error", (event) => {
   const error = `${event.type}: ${event.message}`;
@@ -54,8 +77,8 @@ window.addEventListener("error", (event) => {
 });
 
 document.addEventListener("DOMContentLoaded", function () {
-  initAudios();
-  volumeInput.value = currentVolume
+  beatStyleInput.value = selectedBeatStyle;
+  volumeInput.value = currentVolume;
   octaveInput.value = octave;
   drumToggle.checked = drumEnabled;
   beatsInput.value = beatCount;
@@ -65,19 +88,6 @@ function getStoredValue(key, defaultValue) {
   const stored = localStorage.getItem(`${projectName}_${key}`);
   if (stored == null) return defaultValue;
   return JSON.parse(stored);
-}
-
-function initAudios() {
-  for (let i = 0; i < 88; i++) {
-    const audio = new Audio(`assets/audio/notes/${i + 1}.mp3`);
-    noteAudios.push(audio);
-  }
-
-  const drumNames = ["hi-hat", "kick", "snare"];
-  drumNames.forEach((drumName) => {
-    const audio = new Audio(`assets/audio/drums/${drumName}.mp3`);
-    drumAudios.push(audio);
-  });
 }
 
 function capitalizeFirstLetter(str) {
@@ -91,8 +101,10 @@ function clamp(value, min, max) {
 function playAudios(audios, volume) {
   audios.forEach((audio) => {
     const freshAudio = new Audio(audio.src);
-    freshAudio.volume = volume || currentVolume;
-    freshAudio.play();
+    setTimeout(() => {
+      freshAudio.volume = volume || currentVolume;
+      freshAudio.play();
+    }, 200);
   });
 }
 
@@ -103,8 +115,8 @@ function parseChord(input) {
   const rootNote = capitalizeFirstLetter(match[1]);
   const type = (match[2] || "").toLowerCase();
 
-  const rootIndex = noteNames[rootNote];
-  const formula = chordTypes[type];
+  const rootIndex = notes[rootNote];
+  const formula = chordFormulas[type];
 
   if (rootIndex === undefined || !formula) return null;
 
@@ -117,6 +129,8 @@ function parseChord(input) {
 
 function playChord() {
   const chordName = chordInput.value;
+  if (!chordName) return;
+
   const keys = parseChord(chordName);
   if (!keys) {
     chordInput.value = "";
@@ -126,67 +140,72 @@ function playChord() {
 
   currentChord = keys;
 
-  const audios = keys.map((key) => noteAudios[key]);
-  playAudios(audios);
-
   playBeats();
   if (drumEnabled) playDrumBeats();
 
   chordInput.value = "";
 }
 
-function playRoot() {
-  if (!currentChord) return;
-  const key = currentChord[0];
-  const audio = new Audio(`assets/audio/notes/${key}.mp3`);
-  audio.play();
-}
-
 function playBeats() {
   if (!currentChord || beatCount <= 0) return;
 
-  const audios = currentChord.map((key) => noteAudios[key]);
-  for (let i = 0; i < beatCount; i++) {
+  const audios = currentChord.map((key) => new Audio(`assets/audio/notes/${key + 1}.mp3`));
+  playAudios(audios.filter((_, index) => beatStyles[selectedBeatStyle].beats[0].includes(index)));
+
+  for (let i = 1; i < beatCount; i++) {
     setTimeout(() => {
-      playAudios(audios, currentVolume / 4);
-    }, 1000 * (i + 1));
+      const beatAudios = audios.filter((_, index) => beatStyles[selectedBeatStyle].beats[i].includes(index));
+      playAudios(beatAudios, currentVolume / 4);
+    }, 1000 * i);
   }
+
+  // for (let i = 0; i < beatCount; i++) {
+  //   setTimeout(() => {
+  //     playAudios(audios, currentVolume / 4);
+  //   }, 1000 * (i + 1));
+  // }
 }
 
 function playDrumBeats() {
-  playDrum(0);
-  for (let i = 0; i < beatCount; i++) {
+  const drumNames = ["kick", "snare", "hi-hat"];
+  const audio = new Audio(`assets/audio/drums/${drumNames[beatStyles[selectedBeatStyle].drums[0]]}.mp3`);
+  playAudios([audio], currentVolume / 2);
+  for (let i = 1; i < beatCount; i++) {
     setTimeout(() => {
-      playDrum(i + 1);
-    }, 1000 * (i + 1));
+      const audio = new Audio(`assets/audio/drums/${drumNames[beatStyles[selectedBeatStyle].drums[i]]}.mp3`);
+      playAudios([audio], currentVolume / 2);
+      playAudios([]);
+    }, 1000 * i);
   }
 }
 
-function playDrum(drumIndex = 0) {
-  const audio = drumIndex % 2 === 0 ? drumAudios[1] : drumAudios[2];
-  playAudios([audio], currentVolume / 2);
+function changeBeatStyle(value) {
+  selectedBeatStyle = parseInt(value);
+  localStorage.setItem(`${projectName}_selectedBeatStyle`, selectedBeatStyle);
 }
 
 function changeVolume(value) {
-  currentVolume = value
-  localStorage.setItem(`${projectName}_currentVolume`, currentVolume)
+  currentVolume = value;
+  localStorage.setItem(`${projectName}_currentVolume`, currentVolume);
 }
 
 function changeOctave(value) {
-  octaveInput.value = clamp(value, 0, 6);
+  value = clamp(value, 0, 6);
+  octaveInput.value = value;
   octave = value;
-  localStorage.setItem(`${projectName}_octave`, octave)
+  localStorage.setItem(`${projectName}_octave`, octave);
 }
 
 function toggleDrum(state) {
   drumEnabled = state;
-  localStorage.setItem(`${projectName}_drumEnabled`, drumEnabled)
+  localStorage.setItem(`${projectName}_drumEnabled`, drumEnabled);
 }
 
 function changeBeatCount(value) {
-  beatsInput.value = clamp(value, 0, 4);
+  value = clamp(value, 0, 4);
+  beatsInput.value = value;
   beatCount = value;
-  localStorage.setItem(`${projectName}_beatCount`, beatCount)
+  localStorage.setItem(`${projectName}_beatCount`, beatCount);
 }
 
 document.addEventListener("focusin", function (e) {
@@ -200,7 +219,7 @@ chordInput.addEventListener("input", function (event) {
 
   if (value.endsWith(" ") || value.endsWith("\n") || value.endsWith(";")) {
     event.preventDefault();
-    chordInput.value = value.slice(0, -1); 
+    chordInput.value = value.slice(0, -1);
     playChord();
   }
 });
