@@ -7,6 +7,7 @@
     <link rel="icon" href="favicon.png" type="image/x-icon" />
     <link rel="shortcut icon" href="favicon.png" type="image/x-icon" />
     <link rel="stylesheet" href="style.css" />
+    <script src="data.js" defer></script>
     <script src="script.js" defer></script>
   </head>
   <body class="dark-theme">
@@ -24,17 +25,21 @@
             <option value="3">Melodic</option>
           </select>
         </label>
+        <label class="tempo-input">
+          Tempo
+          <input type="number" min="50" max="150" onchange="changeTempo(this.value)" />
+        </label>
         <label class="volume-input">
           Volume
           <select oninput="changeVolume(this.value)">
             <option value="0.25">25%</option>
-            <option value="0.50">50%</option>
+            <option value="0.5">50%</option>
             <option value="0.75">75%</option>
           </select>
         </label>
         <label class="octave-input">
           Octave
-          <input type="number" min="0" max="6" oninput="changeOctave(this.value)" />
+          <input type="number" min="0" max="6" onchange="changeOctave(this.value)" />
         </label>
         <label class="drum-toggle">
           Drum
@@ -42,7 +47,7 @@
         </label>
         <label class="beats-input">
           Beats
-          <input type="number" min="0" max="4" oninput="changeBeatCount(this.value)" />
+          <input type="number" min="0" max="4" onchange="changeBeatCount(this.value)" />
         </label>
       </div>
 
@@ -54,6 +59,10 @@
       <button class="button" onclick="playChord()">Play</button>
 
       <span class="message">Press space, semicolon, or enter to play</span>
+
+      <div class="toast-container hidden"></div>
+
+      <button class="theme-toggle" onclick="toggleTheme()"></button>
     </div>
   </body>
 </html>

@@ -3,72 +3,21 @@ const chordInput = document.querySelector(".chord-input textarea");
 const settingsEl = document.querySelector(".settings");
 const beatStyleInput = document.querySelector(".beat-style-input select");
 const volumeInput = document.querySelector(".volume-input select");
+const tempoInput = document.querySelector(".tempo-input input");
 const octaveInput = settingsEl.querySelector(".octave-input input");
 const drumToggle = settingsEl.querySelector(".drum-toggle input");
 const beatsInput = settingsEl.querySelector(".beats-input input");
-const messageEl = document.querySelector(".message");
-
-const notes = {
-  C: 0,
-  "C#": 1,
-  Db: 1,
-  D: 2,
-  "D#": 3,
-  Eb: 3,
-  E: 4,
-  Fb: 4,
-  F: 5,
-  "E#": 5,
-  "F#": 6,
-  Gb: 6,
-  G: 7,
-  "G#": 8,
-  Ab: 8,
-  A: 9,
-  "A#": 10,
-  Bb: 10,
-  B: 11,
-  Cb: 11,
-};
-
-const chordFormulas = {
-  "": [0, 4, 7],
-  m: [0, 3, 7],
-  7: [0, 4, 7, 10],
-  m7: [0, 3, 7, 10],
-  maj7: [0, 4, 7, 11],
-};
-
-const beatStyles = [
-  {
-    name: "Pop",
-    beats: [[0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3], [0, 1, 2, 3]],
-    drums: [0, 1, 0, 1],
-  },
-  {
-    name: "Pop2",
-    beats: [[0], [0, 1, 2, 3], [], [0]],
-    drums: [0, 1, 2, 1],
-  },
-  {
-    name: "Jazz",
-    beats: [[0, 1, 2, 3], [], [], []],
-    drums: [0, 2, 2, 0],
-  },
-  {
-    name: "Melodic",
-    beats: [[0], [1], [2], [3]],
-    drums: [0, 1, 2, 2],
-  },
-];
 
 let currentChord = null;
 let currentVolume = getStoredValue("currentVolume", 0.5);
+let tempo = getStoredValue("tempo", 100);
 let octave = getStoredValue("octave", 3);
-let beatCount = getStoredValue("beatCount", 3);
+let beatCount = getStoredValue("beatCount", 4);
 let drumEnabled = getStoredValue("drumEnabled", true);
 
 let selectedBeatStyle = getStoredValue("selectedBeatStyle", 0);
+
+let darkTheme = getStoredValue("darkTheme", false)
 
 window.addEventListener("error", (event) => {
   const error = `${event.type}: ${event.message}`;
@@ -79,9 +28,11 @@ window.addEventListener("error", (event) => {
 document.addEventListener("DOMContentLoaded", function () {
   beatStyleInput.value = selectedBeatStyle;
   volumeInput.value = currentVolume;
+  tempoInput.value = tempo;
   octaveInput.value = octave;
   drumToggle.checked = drumEnabled;
   beatsInput.value = beatCount;
+  toggleTheme(darkTheme)
 });
 
 function getStoredValue(key, defaultValue) {
@@ -100,11 +51,12 @@ function clamp(value, min, max) {
 
 function playAudios(audios, volume) {
   audios.forEach((audio) => {
-    const freshAudio = new Audio(audio.src);
+    // Wait for browser security
     setTimeout(() => {
+      const freshAudio = new Audio(audio.src);
       freshAudio.volume = volume || currentVolume;
       freshAudio.play();
-    }, 200);
+    }, 100);
   });
 }
 
@@ -134,7 +86,7 @@ function playChord() {
   const keys = parseChord(chordName);
   if (!keys) {
     chordInput.value = "";
-    messageEl.textContent = "That chord is invalid";
+    Toast.show("Cannot play. That chord is invalid");
     return;
   }
 
@@ -155,15 +107,9 @@ function playBeats() {
   for (let i = 1; i < beatCount; i++) {
     setTimeout(() => {
       const beatAudios = audios.filter((_, index) => beatStyles[selectedBeatStyle].beats[i].includes(index));
-      playAudios(beatAudios, currentVolume / 4);
-    }, 1000 * i);
+      playAudios(beatAudios, currentVolume / 2);
+    }, (60000 / tempo) * i);
   }
-
-  // for (let i = 0; i < beatCount; i++) {
-  //   setTimeout(() => {
-  //     playAudios(audios, currentVolume / 4);
-  //   }, 1000 * (i + 1));
-  // }
 }
 
 function playDrumBeats() {
@@ -175,7 +121,7 @@ function playDrumBeats() {
       const audio = new Audio(`assets/audio/drums/${drumNames[beatStyles[selectedBeatStyle].drums[i]]}.mp3`);
       playAudios([audio], currentVolume / 2);
       playAudios([]);
-    }, 1000 * i);
+    }, (60000 / tempo) * i);
   }
 }
 
@@ -189,10 +135,17 @@ function changeVolume(value) {
   localStorage.setItem(`${projectName}_currentVolume`, currentVolume);
 }
 
+function changeTempo(value) {
+  value = clamp(value, 50, 150);
+  tempo = value;
+  tempoInput.value = tempo;
+  localStorage.setItem(`${projectName}_tempo`, tempo);
+}
+
 function changeOctave(value) {
   value = clamp(value, 0, 6);
-  octaveInput.value = value;
   octave = value;
+  octaveInput.value = octave;
   localStorage.setItem(`${projectName}_octave`, octave);
 }
 
@@ -203,9 +156,44 @@ function toggleDrum(state) {
 
 function changeBeatCount(value) {
   value = clamp(value, 0, 4);
-  beatsInput.value = value;
   beatCount = value;
+  beatsInput.value = beatCount;
   localStorage.setItem(`${projectName}_beatCount`, beatCount);
+}
+
+const Toast = (() => {
+  const container = document.querySelector(".toast-container");
+  let currentItems = [];
+
+  function show(message) {
+    if (!message) return;
+    const item = crypto.randomUUID();
+    currentItems.push(item);
+    container.innerHTML += `
+      <div class="toast" data-toast="${item}">
+        ${message}
+      </div>
+    `;
+    container.classList.remove("hidden");
+
+    setTimeout(() => {
+      const itemEl = container.querySelector(`[data-toast="${item}"]`);
+      itemEl.remove();
+      const itemToFilter = item;
+      currentItems = currentItems.filter((item) => item !== itemToFilter);
+      if (currentItems.length <= 0) container.classList.add("hidden");
+    }, 3000);
+  }
+
+  return { show };
+})();
+
+function toggleTheme(state) {
+  darkTheme = state === undefined ? !darkTheme : state
+  const toggle = document.querySelector(".theme-toggle");
+  localStorage.setItem(`${projectName}_darkTheme`, darkTheme);
+  document.body.classList.toggle("dark-theme", darkTheme);
+  toggle.innerHTML = darkTheme ? `<i class="bi bi-sun"></i>` : `<i class="bi bi-moon"></i>`;
 }
 
 document.addEventListener("focusin", function (e) {
