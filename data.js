@@ -36,7 +36,7 @@ const beatStyles = [
     drums: [0, 1, 0, 1],
   },
   {
-    name: "Pop2",
+    name: "Pop 2",
     beats: [[0], [0, 1, 2, 3], [], [0]],
     drums: [2, 1, 2, 1],
   },
